@@ -10,6 +10,8 @@ import {
   ArrowTrendingDownIcon,
   TrophyIcon
 } from '@heroicons/react/24/outline'
+import { useQuery } from 'react-query'
+import { useSearchParams } from 'next/navigation'
 
 const subjectStats = [
   { subject: 'Mathematics', avg: 72, toppers: 5, trend: 'up' as const },
@@ -34,7 +36,29 @@ const classStats = [
   { cls: 'Class 10', avg: 74, pass: 91 }
 ]
 
+type PerformanceResponse = {
+  success: boolean
+  performance: {
+    aiInsights?: string
+  } | null
+}
+
 export default function PerformanceAnalysisPage() {
+  const searchParams = useSearchParams()
+  const studentId = searchParams.get('studentId')
+
+  const { data, isLoading, error } = useQuery<PerformanceResponse>(
+    ['institute-performance', studentId],
+    async () => {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/institute/performance/student/${studentId}`)
+      if (!res.ok) throw new Error('Failed to load performance')
+      return res.json()
+    },
+    { enabled: !!studentId }
+  )
+
+  const aiInsights = data?.performance?.aiInsights || null
+
   return (
     <div className="min-h-screen bg-slate-950 text-white">
       <header className="border-b border-white/10 bg-slate-950/70 backdrop-blur-lg sticky top-0 z-30">
@@ -85,6 +109,10 @@ export default function PerformanceAnalysisPage() {
               Instead of complex spreadsheets, institutes see clear graphs and highlights – which class is doing
               well, which subject needs extra support, and how toppers are improving.
             </motion.p>
+            <p className="mt-3 text-[11px] text-slate-400">
+              To view AI insights for a specific student, open this page with{' '}
+              <code className="font-mono">?studentId=&lt;id&gt;</code> in the URL.
+            </p>
 
             <motion.div
               initial={{ opacity: 0, y: 20 }}

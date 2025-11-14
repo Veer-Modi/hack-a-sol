@@ -10,23 +10,9 @@ import {
   ShieldExclamationIcon,
   BellAlertIcon
 } from '@heroicons/react/24/outline'
+import { useQuery } from 'react-query'
 
-const upcomingTests = [
-  {
-    name: 'Math Unit Test',
-    cls: 'Class 9',
-    date: '21 Nov, 2025',
-    time: '10:00 - 11:00 AM',
-    mode: 'Offline + OMR'
-  },
-  {
-    name: 'Science Practice Test',
-    cls: 'Class 10',
-    date: '24 Nov, 2025',
-    time: '09:30 - 10:30 AM',
-    mode: 'Online (Lab)' 
-  }
-]
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
 
 const instituteNavItems = [
   { href: '/institute/student-enrollment', label: 'Student enrollment' },
@@ -38,7 +24,26 @@ const instituteNavItems = [
   { href: '/institute/exam-conduct', label: 'Exam conduct' }
 ]
 
+type InstituteTestSummary = {
+  _id: string
+  name: string
+  class?: string
+  examType?: string
+  subjects?: string[]
+  startTime?: string
+  endTime?: string
+  mode?: string
+}
+
 export default function TestConductionPage() {
+  const { data, isLoading, error } = useQuery(['institute-tests'], async () => {
+    const res = await fetch(`${API_BASE}/institute/tests`)
+    if (!res.ok) throw new Error('Failed to load tests')
+    return res.json() as Promise<{ success: boolean; tests: InstituteTestSummary[] }>
+  })
+
+  const tests: InstituteTestSummary[] = data?.tests || []
+
   return (
     <div className="min-h-screen bg-slate-950 text-white">
       <header className="border-b border-white/10 bg-slate-950/70 backdrop-blur-lg sticky top-0 z-30">
@@ -97,16 +102,16 @@ export default function TestConductionPage() {
               className="mt-5 grid gap-3 sm:grid-cols-3 text-xs"
             >
               <div className="rounded-2xl border border-primary-400/40 bg-primary-500/10 px-4 py-3">
-                <p className="text-[11px] text-primary-100 mb-1">Tests this month</p>
-                <p className="text-xl font-semibold">14</p>
+                <p className="text-[11px] text-primary-100 mb-1">Tests configured</p>
+                <p className="text-xl font-semibold">{isLoading ? '...' : tests.length}</p>
               </div>
               <div className="rounded-2xl border border-emerald-400/40 bg-emerald-500/10 px-4 py-3">
                 <p className="text-[11px] text-emerald-100 mb-1">Average attendance</p>
-                <p className="text-xl font-semibold">89%</p>
+                <p className="text-xl font-semibold">—</p>
               </div>
               <div className="rounded-2xl border border-amber-400/40 bg-amber-500/10 px-4 py-3">
                 <p className="text-[11px] text-amber-100 mb-1">Cheating alerts</p>
-                <p className="text-xl font-semibold">03</p>
+                <p className="text-xl font-semibold">—</p>
               </div>
             </motion.div>
           </div>
@@ -173,23 +178,31 @@ export default function TestConductionPage() {
           </div>
 
           <div className="grid gap-3 md:grid-cols-2">
-            {upcomingTests.map((test, index) => (
+            {isLoading && (
+              <div className="text-xs text-slate-400">Loading tests…</div>
+            )}
+            {error && !isLoading && (
+              <div className="text-xs text-red-400">Failed to load tests from backend.</div>
+            )}
+            {!isLoading && !error && tests.map((test, index) => (
               <motion.article
-                key={test.name}
+                key={test._id}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, delay: 0.05 * index }}
                 className="rounded-2xl border border-white/10 bg-slate-950/80 p-4 text-xs"
               >
                 <p className="text-sm font-medium text-slate-50 mb-1">{test.name}</p>
-                <p className="text-[11px] text-slate-300 mb-2">{test.cls}</p>
+                <p className="text-[11px] text-slate-300 mb-2">
+                  Class {test.class || '—'} • {test.examType || 'Test'}
+                </p>
                 <div className="flex items-center justify-between mb-2">
                   <span className="flex items-center gap-1 text-slate-300">
                     <ClockIcon className="h-4 w-4" />
-                    {test.date} • {test.time}
+                    {test.startTime ? new Date(test.startTime).toLocaleString() : 'Schedule not set'}
                   </span>
                   <span className="px-2 py-1 rounded-full bg-sky-500/15 text-sky-100 border border-sky-400/40">
-                    {test.mode}
+                    {test.mode || 'online'}
                   </span>
                 </div>
                 <div className="h-1.5 w-full rounded-full bg-slate-800 overflow-hidden mb-1">

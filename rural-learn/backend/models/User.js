@@ -6,6 +6,21 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   role: { type: String, enum: ['student', 'teacher'], required: true },
+  // Optional institute-specific fields for enrollment and analytics
+  institute: { type: mongoose.Schema.Types.ObjectId, ref: 'Institute' },
+  batch: { type: mongoose.Schema.Types.ObjectId, ref: 'Batch' },
+  rollNo: String,
+  parentContact: {
+    name: String,
+    phone: String,
+  },
+  assignedSubjects: [String],
+  activeStatus: { type: String, enum: ['active', 'inactive', 'pendingDocs'], default: 'active' },
+  aiProfile: {
+    learningPace: String,
+    preferredStudyStyle: String,
+    weakAreas: [String],
+  },
   profile: {
     avatar: String,
     bio: String,

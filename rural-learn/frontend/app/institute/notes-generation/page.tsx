@@ -9,6 +9,10 @@ import {
   PlayCircleIcon,
   SparklesIcon
 } from '@heroicons/react/24/outline'
+import { useMutation } from 'react-query'
+import { useState } from 'react'
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
 
 const samplePoints = [
   'Key formulae summarised in 3–4 simple lines',
@@ -28,6 +32,32 @@ const instituteNavItems = [
 ]
 
 export default function NotesGenerationPage() {
+  const [input, setInput] = useState('Class 10 Maths: Introduction to Trigonometry')
+  const [style, setStyle] = useState<'simple' | 'exam-focused'>('simple')
+  const [generated, setGenerated] = useState<string | null>(null)
+
+  const generateMutation = useMutation(async () => {
+    const res = await fetch(`${API_BASE}/institute/notes/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        instituteId: null,
+        teacherId: null,
+        sourceType: 'topic',
+        sourceRef: input,
+        class: 'Class 10',
+        subject: 'Mathematics',
+        style,
+        rawContent: input,
+      }),
+    })
+    if (!res.ok) throw new Error('Failed to generate notes')
+    const data = await res.json() as { success: boolean; notes: { notesText: string } }
+    return data.notes.notesText
+  }, {
+    onSuccess: (text) => setGenerated(text),
+  })
+
   return (
     <div className="min-h-screen bg-slate-950 text-white">
       <header className="border-b border-white/10 bg-slate-950/70 backdrop-blur-lg sticky top-0 z-30">
@@ -87,14 +117,33 @@ export default function NotesGenerationPage() {
             >
               <div>
                 <p className="text-slate-300 mb-1">Video / topic input</p>
-                <div className="rounded-lg bg-slate-900/70 border border-white/10 px-3 py-2 text-slate-200 text-[11px]">
-                  Example: "Class 10 Maths: Introduction to Trigonometry" or YouTube URL
-                </div>
+                <textarea
+                  className="w-full rounded-lg bg-slate-900/70 border border-white/10 px-3 py-2 text-slate-200 text-[11px] min-h-[60px]"
+                  value={input}
+                  onChange={e => setInput(e.target.value)}
+                />
               </div>
-              <button className="inline-flex items-center gap-2 rounded-full bg-primary-500 text-[11px] font-medium px-4 py-2 shadow shadow-primary-500/40">
-                <SparklesIcon className="h-4 w-4" />
-                Generate notes with AI
-              </button>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 text-[11px] text-slate-300">
+                  <span>Style:</span>
+                  <select
+                    className="rounded-lg bg-slate-900/70 border border-white/10 px-2 py-1 text-xs text-slate-200"
+                    value={style}
+                    onChange={e => setStyle(e.target.value as 'simple' | 'exam-focused')}
+                  >
+                    <option value="simple">Simple</option>
+                    <option value="exam-focused">Exam focused</option>
+                  </select>
+                </div>
+                <button
+                  className="inline-flex items-center gap-2 rounded-full bg-primary-500 text-[11px] font-medium px-4 py-2 shadow shadow-primary-500/40 disabled:opacity-60 disabled:cursor-not-allowed"
+                  onClick={() => generateMutation.mutate()}
+                  disabled={generateMutation.isLoading}
+                >
+                  <SparklesIcon className="h-4 w-4" />
+                  {generateMutation.isLoading ? 'Generating…' : 'Generate notes with AI'}
+                </button>
+              </div>
             </motion.div>
           </div>
 
@@ -120,23 +169,36 @@ export default function NotesGenerationPage() {
             </div>
 
             <div className="space-y-2">
-              {samplePoints.map((point, index) => (
-                <motion.div
-                  key={point}
-                  initial={{ opacity: 0, x: 10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.3, delay: 0.05 * index }}
-                  className="flex items-start gap-2"
-                >
-                  <span className="mt-1 h-1.5 w-1.5 rounded-full bg-primary-300" />
-                  <p className="text-[11px] text-slate-200">{point}</p>
-                </motion.div>
-              ))}
+              {generated
+                ? generated.split('\n').map((line, index) => (
+                    <motion.div
+                      key={index}
+                      initial={{ opacity: 0, x: 10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.3, delay: 0.02 * index }}
+                      className="flex items-start gap-2"
+                    >
+                      <span className="mt-1 h-1.5 w-1.5 rounded-full bg-primary-300" />
+                      <p className="text-[11px] text-slate-200">{line}</p>
+                    </motion.div>
+                  ))
+                : samplePoints.map((point, index) => (
+                    <motion.div
+                      key={point}
+                      initial={{ opacity: 0, x: 10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.3, delay: 0.05 * index }}
+                      className="flex items-start gap-2"
+                    >
+                      <span className="mt-1 h-1.5 w-1.5 rounded-full bg-primary-300" />
+                      <p className="text-[11px] text-slate-200">{point}</p>
+                    </motion.div>
+                  ))}
             </div>
 
             <div className="mt-4 rounded-xl border border-dashed border-white/20 bg-slate-950/70 px-3 py-2 text-[10px] text-slate-200">
-              Final notes can be downloaded as PDF. With backend enabled, the system uses Gemini AI and YouTube
-              transcripts to keep content reliable and exam-focused.
+              Connected to <code className="font-mono">/api/institute/notes/generate</code>. When deployed with Gemini,
+              the system uses AI and transcripts to keep content reliable and exam-focused.
             </div>
           </motion.div>
         </section>

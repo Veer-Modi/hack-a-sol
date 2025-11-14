@@ -118,6 +118,11 @@ class GeminiAI {
     }
   }
 
+  // Wrapper that accepts style config object for institute notes generation
+  async generateNotesWithStyle({ content, style }) {
+    return this.generateNotes(content, style || 'simple');
+  }
+
   async analyzePerformance(testResults, studentProfile) {
     const prompt = `Analyze student performance and provide personalized recommendations:
     
@@ -157,6 +162,85 @@ class GeminiAI {
       return response.text();
     } catch (error) {
       console.error('Teaching style adaptation error:', error);
+      throw error;
+    }
+  }
+
+  // --- Institute-specific helpers ---
+
+  async generateStudentProfile(studentData) {
+    const prompt = `Analyze the following basic student data and infer a simple learning profile:
+    ${JSON.stringify(studentData)}
+    
+    Respond as JSON with keys: learningPace, preferredStudyStyle, weakAreas (array of strings).`;
+    try {
+      const result = await this.model.generateContent(prompt);
+      const response = await result.response;
+      return JSON.parse(response.text());
+    } catch (error) {
+      console.error('Student profile generation error:', error);
+      throw error;
+    }
+  }
+
+  async generatePaper({ class: cls, subject, chapters = [], difficultyMix, questionConfig }) {
+    const prompt = `Generate an exam paper for class ${cls}, subject ${subject}.
+    Chapters: ${chapters.join(', ')}.
+    Difficulty mix: ${JSON.stringify(difficultyMix)}.
+    Question config: ${JSON.stringify(questionConfig)}.
+    
+    Return JSON with keys: questions (array with text, options, correctAnswer, marks, type, topic, difficulty, solution),
+    totalMarks, durationMinutes, difficultyStats.`;
+    try {
+      const result = await this.model.generateContent(prompt);
+      const response = await result.response;
+      return JSON.parse(response.text());
+    } catch (error) {
+      console.error('Paper generation error:', error);
+      throw error;
+    }
+  }
+
+  async analyzeInstitutePerformance(perfData) {
+    const prompt = `You are an analytics assistant for a rural institute.
+    Given recent exam attempts: ${JSON.stringify(perfData)}
+    
+    Provide concise insights (2-3 paragraphs) about strengths, weaknesses, and suggested next steps.`;
+    try {
+      const result = await this.model.generateContent(prompt);
+      const response = await result.response;
+      return response.text();
+    } catch (error) {
+      console.error('Institute performance analysis error:', error);
+      throw error;
+    }
+  }
+
+  async summarizeMaterial(text) {
+    const prompt = `Summarize the following study material into 3-5 bullet points suitable for rural students:
+    ${text}`;
+    try {
+      const result = await this.model.generateContent(prompt);
+      const response = await result.response;
+      return response.text();
+    } catch (error) {
+      console.error('Material summary error:', error);
+      throw error;
+    }
+  }
+
+  async evaluateSubjectiveExam(attempt) {
+    const prompt = `Given the following exam attempt (answers may include text or descriptions):
+    ${JSON.stringify(attempt.answers)}
+    
+    Suggest a total score (number) and a short explanation for the teacher.
+    Respond as JSON with keys: totalSuggestedScore, overallExplanation.`;
+    try {
+      const result = await this.model.generateContent(prompt);
+      const response = await result.response;
+      return JSON.parse(response.text());
+    } catch (error) {
+      console.error('Subjective exam evaluation error:', error);
       throw error;
     }
   }

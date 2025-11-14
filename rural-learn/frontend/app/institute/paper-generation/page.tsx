@@ -9,6 +9,10 @@ import {
   Cog6ToothIcon,
   SparklesIcon
 } from '@heroicons/react/24/outline'
+import { useMutation, useQuery } from 'react-query'
+import { useState } from 'react'
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
 
 const blueprint = [
   { type: 'Very Short (1 mark)', count: 8 },
@@ -27,7 +31,48 @@ const instituteNavItems = [
   { href: '/institute/exam-conduct', label: 'Exam conduct' }
 ]
 
+type GeneratedPaperSummary = {
+  _id: string
+  class?: string
+  subject?: string
+  totalMarks?: number
+  createdAt?: string
+}
+
 export default function PaperGenerationPage() {
+  const [subject, setSubject] = useState('Mathematics')
+  const [className, setClassName] = useState('Class 10')
+
+  const papersQuery = useQuery(['institute-papers'], async () => {
+    const res = await fetch(`${API_BASE}/institute/paper`)
+    if (!res.ok) throw new Error('Failed to load papers')
+    return res.json() as Promise<{ success: boolean; papers: GeneratedPaperSummary[] }>
+  })
+
+  const generateMutation = useMutation(async () => {
+    const res = await fetch(`${API_BASE}/institute/tests/generate-paper`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        instituteId: null,
+        class: className,
+        subject,
+        chapters: [],
+        difficultyMix: { easy: 40, medium: 40, hard: 20 },
+        questionConfig: { totalMarks: 80 },
+      }),
+    })
+    if (!res.ok) throw new Error('Failed to generate paper')
+    return res.json()
+  }, {
+    onSuccess: () => {
+      papersQuery.refetch()
+    },
+  })
+
+  const { data, isLoading, error } = papersQuery
+  const papers: GeneratedPaperSummary[] = data?.papers || []
+
   return (
     <div className="min-h-screen bg-slate-950 text-white">
       <header className="border-b border-white/10 bg-slate-950/70 backdrop-blur-lg sticky top-0 z-30">
@@ -88,34 +133,42 @@ export default function PaperGenerationPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <p className="text-slate-300 mb-1">Subject</p>
-                  <div className="rounded-lg bg-slate-900/70 border border-white/10 px-3 py-2 text-slate-200">
-                    Mathematics
-                  </div>
+                  <input
+                    className="w-full rounded-lg bg-slate-900/70 border border-white/10 px-3 py-2 text-slate-200 text-xs"
+                    value={subject}
+                    onChange={e => setSubject(e.target.value)}
+                  />
                 </div>
                 <div>
                   <p className="text-slate-300 mb-1">Class</p>
-                  <div className="rounded-lg bg-slate-900/70 border border-white/10 px-3 py-2 text-slate-200">
-                    Class 10
-                  </div>
+                  <input
+                    className="w-full rounded-lg bg-slate-900/70 border border-white/10 px-3 py-2 text-slate-200 text-xs"
+                    value={className}
+                    onChange={e => setClassName(e.target.value)}
+                  />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <p className="text-slate-300 mb-1">Difficulty mix</p>
-                  <div className="rounded-lg bg-slate-900/70 border border-white/10 px-3 py-2 text-slate-200">
+                  <div className="rounded-lg bg-slate-900/70 border border-white/10 px-3 py-2 text-slate-200 text-[11px]">
                     40% Easy • 40% Medium • 20% Hard
                   </div>
                 </div>
                 <div>
                   <p className="text-slate-300 mb-1">Language</p>
-                  <div className="rounded-lg bg-slate-900/70 border border-white/10 px-3 py-2 text-slate-200">
+                  <div className="rounded-lg bg-slate-900/70 border border-white/10 px-3 py-2 text-slate-200 text-[11px]">
                     Hindi + English
                   </div>
                 </div>
               </div>
-              <button className="mt-2 inline-flex items-center gap-2 rounded-full bg-primary-500 text-[11px] font-medium px-4 py-2 shadow shadow-primary-500/40">
+              <button
+                className="mt-2 inline-flex items-center gap-2 rounded-full bg-primary-500 text-[11px] font-medium px-4 py-2 shadow shadow-primary-500/40 disabled:opacity-60 disabled:cursor-not-allowed"
+                onClick={() => generateMutation.mutate()}
+                disabled={generateMutation.isLoading}
+              >
                 <SparklesIcon className="h-4 w-4" />
-                Generate blueprint with AI
+                {generateMutation.isLoading ? 'Generating…' : 'Generate blueprint with AI'}
               </button>
             </motion.div>
           </div>
@@ -170,9 +223,35 @@ export default function PaperGenerationPage() {
           </motion.div>
         </section>
 
-        <section className="text-[11px] sm:text-xs text-slate-400 border border-dashed border-white/10 rounded-2xl p-4">
-          This page shows the design of the question paper generation system. Institutes can set templates once
-          and re-use them for monthly tests or board exam practice papers.
+        <section className="space-y-2 text-[11px] sm:text-xs text-slate-400 border border-dashed border-white/10 rounded-2xl p-4">
+          <p>
+            This page is connected to <code className="font-mono">/api/institute/tests/generate-paper</code> and{' '}
+            <code className="font-mono">/api/institute/paper</code>. Generated papers will appear in the backend list.
+          </p>
+          <div className="mt-2 grid gap-2 md:grid-cols-2 text-[11px]">
+            <div className="rounded-xl bg-slate-950/80 border border-white/10 p-3">
+              <p className="mb-2 text-slate-200 text-xs">Recent generated papers</p>
+              {isLoading && <p className="text-slate-500">Loading papers…</p>}
+              {error && !isLoading && <p className="text-red-400">Failed to load papers.</p>}
+              {!isLoading && !error && papers.length === 0 && (
+                <p className="text-slate-500">No papers generated yet.</p>
+              )}
+              {!isLoading && !error && papers.length > 0 && (
+                <ul className="space-y-1">
+                  {papers.slice(0, 4).map(p => (
+                    <li key={p._id} className="flex items-center justify-between text-[11px] text-slate-200">
+                      <span>
+                        {p.class || 'Class ?'} • {p.subject || 'Subject'}
+                      </span>
+                      <span className="text-slate-400">
+                        {p.totalMarks ? `${p.totalMarks} marks` : ''}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
         </section>
       </main>
     </div>

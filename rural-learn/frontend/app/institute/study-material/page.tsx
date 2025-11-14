@@ -9,30 +9,9 @@ import {
   LinkIcon,
   ArrowDownTrayIcon
 } from '@heroicons/react/24/outline'
+import { useQuery } from 'react-query'
 
-const materials = [
-  {
-    subject: 'Mathematics',
-    grade: 'Class 9',
-    chapters: 12,
-    pdfs: 18,
-    links: 9
-  },
-  {
-    subject: 'Science',
-    grade: 'Class 10',
-    chapters: 14,
-    pdfs: 21,
-    links: 11
-  },
-  {
-    subject: 'English',
-    grade: 'Class 8',
-    chapters: 10,
-    pdfs: 10,
-    links: 5
-  }
-]
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
 
 const instituteNavItems = [
   { href: '/institute/student-enrollment', label: 'Student enrollment' },
@@ -44,7 +23,25 @@ const instituteNavItems = [
   { href: '/institute/exam-conduct', label: 'Exam conduct' }
 ]
 
+type MaterialSummary = {
+  _id: string
+  title?: string
+  class?: string
+  subject?: string
+  chapter?: string
+  materialType: string
+  aiSummary?: string
+}
+
 export default function StudyMaterialPage() {
+  const { data, isLoading, error } = useQuery(['institute-materials'], async () => {
+    const res = await fetch(`${API_BASE}/institute/material`)
+    if (!res.ok) throw new Error('Failed to load materials')
+    return res.json() as Promise<{ success: boolean; materials: MaterialSummary[] }>
+  })
+
+  const materials: MaterialSummary[] = data?.materials || []
+
   return (
     <div className="min-h-screen bg-slate-950 text-white">
       <header className="border-b border-white/10 bg-slate-950/70 backdrop-blur-lg sticky top-0 z-30">
@@ -128,26 +125,41 @@ export default function StudyMaterialPage() {
               <BookOpenIcon className="h-5 w-5 text-primary-100" />
               <div>
                 <p className="text-xs text-slate-200">Digital shelf</p>
-                <p className="text-[11px] text-slate-300">Maths • Science • English</p>
+                <p className="text-[11px] text-slate-300">Latest uploaded materials</p>
               </div>
             </div>
 
             <div className="space-y-2">
-              {materials.map((m, index) => (
+              {isLoading && (
+                <div className="text-xs text-slate-400">Loading materials…</div>
+              )}
+              {error && !isLoading && (
+                <div className="text-xs text-red-400">Failed to load materials from backend.</div>
+              )}
+              {!isLoading && !error && materials.length === 0 && (
+                <div className="text-xs text-slate-400">No materials uploaded yet.</div>
+              )}
+              {!isLoading && !error && materials.map((m, index) => (
                 <motion.div
-                  key={m.subject}
+                  key={m._id}
                   initial={{ opacity: 0, x: 12 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.3, delay: 0.08 * index }}
                   className="flex items-center justify-between rounded-xl bg-slate-950/70 border border-white/10 px-3 py-2"
                 >
                   <div>
-                    <p className="text-slate-100 text-sm">{m.subject}</p>
-                    <p className="text-[10px] text-slate-400">{m.grade} • {m.chapters} chapters</p>
+                    <p className="text-slate-100 text-sm">{m.title || `${m.subject || 'Subject'} material`}</p>
+                    <p className="text-[10px] text-slate-400">
+                      {m.class || 'Class ?'} • {m.subject || '—'} {m.chapter ? `• ${m.chapter}` : ''}
+                    </p>
+                    {m.aiSummary && (
+                      <p className="mt-1 text-[10px] text-slate-300 line-clamp-2">{m.aiSummary}</p>
+                    )}
                   </div>
                   <div className="text-[10px] text-slate-300 flex flex-col items-end gap-0.5">
-                    <span>{m.pdfs} PDFs</span>
-                    <span>{m.links} links</span>
+                    <span className="uppercase px-2 py-0.5 rounded-full bg-slate-900/80 border border-white/10">
+                      {m.materialType}
+                    </span>
                   </div>
                 </motion.div>
               ))}
