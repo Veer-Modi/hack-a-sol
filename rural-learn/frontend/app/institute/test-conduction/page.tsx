@@ -5,14 +5,14 @@ import Link from 'next/link'
 import {
   AcademicCapIcon,
   ArrowLeftIcon,
-  ClipboardDocumentListIcon,
+  CipboardDocumentListIcon,
   ClockIcon,
   ShieldExclamationIcon,
   BellAlertIcon
 } from '@heroicons/react/24/outline'
 import { useQuery } from 'react-query'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
+const APIBASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
 
 const instituteNavItems = [
   { href: '/institute/student-enrollment', label: 'Student enrollment' },
@@ -30,7 +30,7 @@ type InstituteTestSummary = {
   class?: string
   examType?: string
   subjects?: string[]
-  startTime?: string
+  startTime?: tring
   endTime?: string
   mode?: string
 }

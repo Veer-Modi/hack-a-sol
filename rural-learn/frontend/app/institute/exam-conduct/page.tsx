@@ -10,6 +10,9 @@ import {
   ClockIcon,
   UserGroupIcon
 } from '@heroicons/react/24/outline'
+import { useQuery } from 'react-query'
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
 
 const schedule = [
   { exam: 'Half Yearly Exams', classes: '8th – 10th', window: '05–15 Dec 2025', mode: 'Offline' },
@@ -26,7 +29,23 @@ const instituteNavItems = [
   { href: '/institute/exam-conduct', label: 'Exam conduct' }
 ]
 
+type ExamSummary = {
+  _id: string
+  name: string
+  examType?: string
+  subjects?: string[]
+  status?: string
+}
+
 export default function ExamConductPage() {
+  const { data, isLoading, error } = useQuery(['institute-exams'], async () => {
+    const res = await fetch(`${API_BASE}/institute/exam`)
+    if (!res.ok) throw new Error('Failed to load exams')
+    return res.json() as Promise<{ success: boolean; exams: ExamSummary[] }>
+  })
+
+  const exams: ExamSummary[] = data?.exams || []
+
   return (
     <div className="min-h-screen bg-slate-950 text-white">
       <header className="border-b border-white/10 bg-slate-950/70 backdrop-blur-lg sticky top-0 z-30">
@@ -86,15 +105,15 @@ export default function ExamConductPage() {
             >
               <div className="rounded-2xl border border-primary-400/40 bg-primary-500/10 px-4 py-3">
                 <p className="text-[11px] text-primary-100 mb-1">Exams planned</p>
-                <p className="text-xl font-semibold">04</p>
+                <p className="text-xl font-semibold">{isLoading ? '…' : exams.length}</p>
               </div>
               <div className="rounded-2xl border border-emerald-400/40 bg-emerald-500/10 px-4 py-3">
                 <p className="text-[11px] text-emerald-100 mb-1">Centres mapped</p>
-                <p className="text-xl font-semibold">07</p>
+                <p className="text-xl font-semibold">—</p>
               </div>
               <div className="rounded-2xl border border-amber-400/40 bg-amber-500/10 px-4 py-3">
                 <p className="text-[11px] text-amber-100 mb-1">Staff involved</p>
-                <p className="text-xl font-semibold">32</p>
+                <p className="text-xl font-semibold">—</p>
               </div>
             </motion.div>
           </div>
@@ -163,21 +182,48 @@ export default function ExamConductPage() {
             <QueueListIcon className="h-5 w-5 text-slate-300" />
           </div>
           <div className="grid gap-3 md:grid-cols-2 text-xs">
-            {schedule.map((row, index) => (
+            {isLoading && (
+              <div className="text-slate-400 text-xs">Loading exams…</div>
+            )}
+            {error && !isLoading && (
+              <div className="text-red-400 text-xs">Failed to load exams from backend.</div>
+            )}
+            {!isLoading && !error && exams.length === 0 && (
+              <>
+                {schedule.map((row, index) => (
+                  <motion.article
+                    key={row.exam}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: 0.05 * index }}
+                    className="rounded-2xl border border-white/10 bg-slate-950/80 p-4"
+                  >
+                    <p className="text-sm font-medium text-slate-50 mb-1">{row.exam}</p>
+                    <p className="text-[11px] text-slate-300 mb-2">{row.classes}</p>
+                    <p className="text-[11px] text-slate-200 mb-1">
+                      <ClockIcon className="h-4 w-4 inline-block mr-1" />
+                      {row.window}
+                    </p>
+                    <p className="text-[11px] text-slate-300">Mode: {row.mode}</p>
+                  </motion.article>
+                ))}
+              </>
+            )}
+            {!isLoading && !error && exams.map((exam, index) => (
               <motion.article
-                key={row.exam}
+                key={exam._id}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, delay: 0.05 * index }}
                 className="rounded-2xl border border-white/10 bg-slate-950/80 p-4"
               >
-                <p className="text-sm font-medium text-slate-50 mb-1">{row.exam}</p>
-                <p className="text-[11px] text-slate-300 mb-2">{row.classes}</p>
+                <p className="text-sm font-medium text-slate-50 mb-1">{exam.name}</p>
+                <p className="text-[11px] text-slate-300 mb-2">{exam.examType || 'Exam'} • {(exam.subjects || []).join(', ')}</p>
                 <p className="text-[11px] text-slate-200 mb-1">
                   <ClockIcon className="h-4 w-4 inline-block mr-1" />
-                  {row.window}
+                  Status: {exam.status || 'scheduled'}
                 </p>
-                <p className="text-[11px] text-slate-300">Mode: {row.mode}</p>
+                <p className="text-[11px] text-slate-300">Mode: —</p>
               </motion.article>
             ))}
           </div>
